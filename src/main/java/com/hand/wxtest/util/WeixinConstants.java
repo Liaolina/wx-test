@@ -1,5 +1,7 @@
 package com.hand.wxtest.util;
 
+import org.springframework.beans.factory.annotation.Value;
+
 /**
  * 全局变量
  */

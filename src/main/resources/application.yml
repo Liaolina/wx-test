@@ -1,0 +1,10 @@
+server:
+  servlet:
+    context-path: /wechatTest
+spring:
+  redis:
+    host: 127.0.0.1
+    password: 123456
+  servlet:
+    multipart:
+      enabled: true

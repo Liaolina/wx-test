@@ -1,7 +1,9 @@
 package com.hand.wxtest.controller;
 
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.hand.wxtest.service.WechatService;
 import com.hand.wxtest.util.CheckUtil;
+import net.sf.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.UnsupportedEncodingException;
+import java.util.Map;
 
 @RestController
 public class WechatController {
@@ -109,10 +112,34 @@ public class WechatController {
         }
     }
 
+    /**
+     * 测试用户网页授权的重定向
+     * @param request
+     * @param response
+     */
     @GetMapping("/test")
     public void test(HttpServletRequest request,HttpServletResponse response){
         String code = request.getParameter("code");
         System.out.println(code);
+    }
 
+    /**
+     * 发送模板消息
+     * @return
+     */
+    @GetMapping("/sendTemplateMsg")
+    public String sendTemplateMsg(){
+        return wechatService.sendTemplateMsg();
+    }
+
+    /**
+     * 获取JS-SDK所需的参数
+     * @param url
+     * @return
+     */
+    @GetMapping("/getJsSDKParam")
+    public String getJSSDKParam(String url){
+        Map<String,String> map = wechatService.getJSSDKParam(url);
+        return JSONObject.fromObject(map).toString();
     }
 }

@@ -6,6 +6,7 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,6 +29,8 @@ public class WechatServiceImpl implements WechatService{
     HttpRequestUtil httpRequestUtil;
     @Autowired
     WechatUploadImage wechatUploadImage;
+    @Autowired
+    WeixinJSSDKParamUtil weixinJSSDKParamUtil;
 
     /**
      * 获取Access_Token
@@ -38,14 +41,14 @@ public class WechatServiceImpl implements WechatService{
         try {
             String token = weixinCommenUtil.getToken(WeixinConstants.APPID,WeixinConstants.APPSECRET).getAccess_token();
             stringRedisTemplate.opsForValue().set("accessToken",token,7000*1000, TimeUnit.SECONDS);
-            return "获取到的微信access_token为"+token;
+            String jsapiTicket = weixinJSSDKParamUtil.getJsapiTicket(token);
+            return "获取到的微信access_token为"+token+"\n"+"获取到的微信JSSDK jsapi_ticket为"+jsapiTicket;
         } catch (Exception e) {
             e.printStackTrace();
             this.getWxAccessToken();
             return "failed";
         }
     }
-
     /**
      * 被动消息回复
      * @param request
@@ -317,5 +320,81 @@ public class WechatServiceImpl implements WechatService{
         JSONObject jsonCheck = httpRequestUtil.httpsRequest(urlCheckSendSts,"POST",requestCheck);
         String msgStatus = jsonCheck.getString("msg_status");
         return msgStatus;
+    }
+
+    /**
+     * 发送模板消息
+     * @return
+     */
+    @Override
+    public String sendTemplateMsg() {
+        String accessToken = stringRedisTemplate.opsForValue().get("accessToken");
+        String setInduUrl = WeixinConstants.SET_INDUSTRY_URL.replace("ACCESS_TOKEN",accessToken);
+        String getTempIdUrl = WeixinConstants.GET_TEMPLATE_ID_URL.replace("ACCESS_TOKEN",accessToken);
+        String sendTempMagUrl = WeixinConstants.SEND_TEMPLATE_MSG_URL.replace("ACCESS_TOKEN",accessToken);
+        String postInduData = "{\n" +
+                "    \"industry_id1\":\"1\",\n" +
+                "    \"industry_id2\":\"4\"\n" +
+                "}";
+        //设置所属行业
+        JSONObject setInduJson = httpRequestUtil.httpsRequest(setInduUrl,"POST",postInduData);
+        //行业一个月只能修改一次
+        if(Integer.parseInt(setInduJson.getString("errcode"))==0 || Integer.parseInt(setInduJson.getString("errcode"))==43100){
+            String getTempIdData = "{\n" +
+                    "    \"template_id_short\":\"TM00015\"\n" +
+                    " }";
+            //获取模板ID
+            JSONObject getTempIdJson = httpRequestUtil.httpsRequest(getTempIdUrl,"POST",getTempIdData);
+            if(Integer.parseInt(getTempIdJson.getString("errcode"))==0){
+                String tempId = getTempIdJson.getString("template_id");
+                String sendTempMsgData = "{\n" +
+                        "    \"touser\":\"oUjOOwqdnHcXIS_B-BaSmVKoY_k4\",\n" +
+                        "    \"template_id\":\""+tempId+"\",\n" +
+                        "    \"url\":\"http://www.baidu.com\",\n" +
+                        "    \"data\":{\n" +
+                        "        \"first\":{\n" +
+                        "            \"value\":\"我们已收到您的货款，开始为您打包商品，请耐心等待:\",\n" +
+                        "            \"color\":\"#173177\"\n" +
+                        "        },\n" +
+                        "        \"orderMoneySum\":{\n" +
+                        "            \"value\":\"150元\",\n" +
+                        "            \"color\":\"#173177\"\n" +
+                        "        },\n" +
+                        "        \"orderProductName\":{\n" +
+                        "            \"value\":\"针织衫\",\n" +
+                        "            \"color\":\"#173177\"\n" +
+                        "        },\n" +
+                        "        \"keyword3\":{\n" +
+                        "            \"value\":\"2014年9月22日\",\n" +
+                        "            \"color\":\"#173177\"\n" +
+                        "        },\n" +
+                        "        \"remark\":{\n" +
+                        "            \"value\":\"如有问题请致电400-828-1878或直接在微信留言，小易将第一时间为您服务！！\",\n" +
+                        "            \"color\":\"#173177\"\n" +
+                        "        }\n" +
+                        "    }\n" +
+                        "}";
+                //发送模板消息
+                JSONObject senTempMsgJson = httpRequestUtil.httpsRequest(sendTempMagUrl,"POST",sendTempMsgData);
+                System.out.println(senTempMsgJson.toString());
+                if(Integer.parseInt(senTempMsgJson.getString("errcode"))==0){
+                    return "发送成功";
+                }
+                else{
+                    return "模板消息发送失败";
+                }
+            }
+            else {
+                return "获取模板ID出错";
+            }
+        }
+        return "设置行业出错";
+    }
+
+    @Override
+    public Map<String, String> getJSSDKParam(String url) {
+        String jsapiTicket = stringRedisTemplate.opsForValue().get("jsapiTicket");
+        Map<String,String> map = weixinJSSDKParamUtil.sign(jsapiTicket,url);
+        return map;
     }
 }

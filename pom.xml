@@ -46,7 +46,7 @@
         <dependency>
             <groupId>com.thoughtworks.xstream</groupId>
             <artifactId>xstream</artifactId>
-            <version>RELEASE</version>
+            <version>1.4.15</version>
         </dependency>
     </dependencies>
 
